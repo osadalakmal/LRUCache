@@ -11,7 +11,7 @@ TEST(LruTest,AddTest) {
   ASSERT_STREQ(cache.get(5)->c_str(), "some");
 }
 
-TEST(LruTest,NotAddedTest) {
+TEST(LruTest,WithoutAdditionTest) {
   LruCache<int,string> cache(50);
   ASSERT_FALSE(cache.get(5));
 }
