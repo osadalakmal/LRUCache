@@ -10,3 +10,5 @@ link_directories(/usr/local/lib)
 link_directories(/usr/lib)
 target_link_libraries( lru.tsk gtest pthread )
 
+enable_testing()
+add_test(A lru.tsk)
