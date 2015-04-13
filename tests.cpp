@@ -39,8 +39,13 @@ const std::string getRandomString(const int stringLength) {
   return retString;
 }
 
-void insertToCache(LruCache<int,std::string>* cache, const std::vector<std::pair<int,std::string> >& dataVector) {
-  for(auto& dataItem : dataVector) {
+typedef std::vector<std::pair<int,std::string> > DATA_VECTOR;
+typedef std::vector<std::pair<int,std::string> >* DATA_VECTOR_PTR;
+typedef std::unique_ptr<DATA_VECTOR> DATA_VECTOR_UNIQUE_PTR;
+
+void insertToCache(LruCache<int,std::string>* cache, DATA_VECTOR* dataVector) {
+  DATA_VECTOR_UNIQUE_PTR autoReleaser(dataVector); //take ownership
+  for(auto& dataItem : *dataVector) {
     cache->add(dataItem.first,dataItem.second);
   }
 }
@@ -50,22 +55,22 @@ const std::chrono::microseconds getTimingForInsertTest(const int cacheSize,
   LruCache<int,std::string> cache(cacheSize);
   std::uniform_int_distribution<int> d(0, numDataPoints * 10);
   std::random_device rd1; // uses RDRND or /dev/urandom
-  auto dataVector = new std::vector<std::pair<int,std::string> >[numberOfThreads];
+  auto dataVector = new DATA_VECTOR_PTR[numberOfThreads];
   for (int i = 0; i < numberOfThreads; i++) {
+    dataVector[i] = new DATA_VECTOR();
     for (int j = 0; j < numDataPoints; j++) {
-      dataVector[i].push_back(std::make_pair(d(rd1), getRandomString(15)));
+      dataVector[i]->push_back(std::make_pair(d(rd1), getRandomString(15)));
     }
   }
   std::vector<std::future<void> > futures;
   auto t1 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < numberOfThreads; i++) {
-    futures.push_back(std::async( std::bind(insertToCache, &cache, std::cref(dataVector[i]))));
+    futures.push_back(std::async( std::bind(insertToCache, &cache, dataVector[i])));
   }
   for (auto& future : futures) {
     future.wait();
   }
   auto t2 = std::chrono::high_resolution_clock::now();
-  delete dataVector;  //So Sue ME
   return std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
 }
 
