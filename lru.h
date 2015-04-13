@@ -60,7 +60,6 @@ void LruCache<KEY,VALUE>::add(const KEY& key, const VALUE& value) {
   d_timeOrderedList.emplace_front(key);
   auto dataElement = std::make_pair(value,d_timeOrderedList.begin());
   auto dataMapItem = std::make_pair(key, dataElement);
-  DATA_MAP_ITERATOR it = d_dataMap.insert(dataMapItem).first;
 }
 
 template <typename KEY, typename VALUE>
@@ -78,7 +77,7 @@ std::unique_ptr<VALUE> LruCache<KEY,VALUE>::get(const KEY& key) {
 
 template <typename KEY, typename VALUE>
 void LruCache<KEY,VALUE>::evict(const size_t numOfElements) {
-  for(int i=0; i<numOfElements; i++) {
+  for(size_t i=0; i<numOfElements; i++) {
     d_dataMap.erase(d_timeOrderedList.back());
     d_timeOrderedList.pop_back();
   }
