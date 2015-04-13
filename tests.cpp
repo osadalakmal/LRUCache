@@ -39,10 +39,16 @@ const std::string getRandomString(const int stringLength) {
   return retString;
 }
 
+void insertToCache(LruCache<int,std::string>* cache, const std::vector<std::pair<int,std::string> >& dataVector) {
+  for(auto& dataItem : dataVector) {
+    cache->add(dataItem.first,dataItem.second);
+  }
+}
+
 const std::chrono::microseconds getTimingForInsertTest(const int cacheSize, 
     const int numDataPoints, const int numberOfThreads = 5) {
-  LruCache<int,std::string> cache(cacheSize * numberOfThreads);
-  std::uniform_int_distribution<int> d(0, numberOfItems * numberOfThreads * 10);
+  LruCache<int,std::string> cache(cacheSize);
+  std::uniform_int_distribution<int> d(0, numDataPoints * 10);
   std::random_device rd1; // uses RDRND or /dev/urandom
   std::vector<std::pair<int,std::string> > dataVector[numberOfThreads];
   for (int i = 0; i < numberOfThreads; i++) {
@@ -53,11 +59,7 @@ const std::chrono::microseconds getTimingForInsertTest(const int cacheSize,
   std::vector<std::future<void> > futures;
   auto t1 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < numberOfThreads; i++) {
-    futures.push_back(async(std::launch::async,[&cache,dataVector,i] () {
-        for(auto& dataItem : dataVector[i]) {
-          cache.add(dataItem.first,dataItem.second);
-        }
-    }));
+    futures.push_back(std::async( std::bind(insertToCache, &cache, std::cref(dataVector[i]))));
   }
   for (auto& future : futures) {
     future.wait();
@@ -67,9 +69,9 @@ const std::chrono::microseconds getTimingForInsertTest(const int cacheSize,
 }
 
 TEST(LruTest,AddTimingTest) {
-std::chrono::microseconds doAddTestAndReturnTime() {
+  std::chrono::microseconds durationForTest = getTimingForInsertTest(500,500,5);
   std::cout << "Random Add Test took "
-    << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count()
+    << durationForTest.count()
     << " microseconds\n";
 }
 
