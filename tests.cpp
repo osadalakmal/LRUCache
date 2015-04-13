@@ -50,7 +50,7 @@ const std::chrono::microseconds getTimingForInsertTest(const int cacheSize,
   LruCache<int,std::string> cache(cacheSize);
   std::uniform_int_distribution<int> d(0, numDataPoints * 10);
   std::random_device rd1; // uses RDRND or /dev/urandom
-  std::vector<std::pair<int,std::string> > dataVector[numberOfThreads];
+  auto dataVector = new std::vector<std::pair<int,std::string> >[numberOfThreads];
   for (int i = 0; i < numberOfThreads; i++) {
     for (int j = 0; j < numDataPoints; j++) {
       dataVector[i].push_back(std::make_pair(d(rd1), getRandomString(15)));
@@ -65,6 +65,7 @@ const std::chrono::microseconds getTimingForInsertTest(const int cacheSize,
     future.wait();
   }
   auto t2 = std::chrono::high_resolution_clock::now();
+  delete dataVector;  //So Sue ME
   return std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
 }
 
