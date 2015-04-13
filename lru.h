@@ -78,6 +78,8 @@ std::unique_ptr<VALUE> LruCache<KEY,VALUE>::get(const KEY& key) {
 
 template <typename KEY, typename VALUE>
 void LruCache<KEY,VALUE>::evict(const size_t numOfElements) {
-  d_dataMap.erase(d_timeOrderedList.back());
-  d_timeOrderedList.pop_back();
+  for(int i=0; i<numOfElements; i++) {
+    d_dataMap.erase(d_timeOrderedList.back());
+    d_timeOrderedList.pop_back();
+  }
 }
