@@ -30,7 +30,7 @@ class LruCache {
   private:
     void evict(const size_t numOfElements);
 
-    const int d_cacheSize;
+    const size_t d_cacheSize;
     DATA_MAP_TYPE d_dataMap;
     KEY_LIST_TYPE d_timeOrderedList;
     std::mutex d_accessMutex;
