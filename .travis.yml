@@ -15,9 +15,9 @@ addons:
     project:
       name: "osadalakmal/LRUCache"
     notification_email: osadalakmal@gmail.com
-    build_command_prepend: "sudo apt-get update && sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake . && sudo cmake --build . && sudo mv libg* /usr/local/lib/ ; cd -;"
-    build_command:   "mkdir -p build && cd build && cmake ../ && make"
+    build_command_prepend: "sudo apt-get update && sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake . && sudo cmake --build . && sudo mv libg* /usr/local/lib/ && cd - && cmake ./"
+    build_command:   "make"
     branch_pattern: master
 
 script: 
-  "mkdir -p build && cd build && cmake ../ && make && ctest"
+  "make && ctest"
