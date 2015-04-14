@@ -23,25 +23,30 @@ class LruCache {
     typedef typename DATA_MAP_TYPE::iterator DATA_MAP_ITERATOR;
    
     // Public Interface
-    LruCache(const size_t cacheSize);
+    LruCache(const size_t cacheSize, 
+        const std::chrono::milliseconds quietPeriod = 0);
     ~LruCache();
     void add(const KEY& key, const VALUE& value);
     std::unique_ptr<VALUE> get(const KEY& key);
   private:
     void evict(const size_t numOfElements);
 
-    const size_t d_cacheSize;
-    DATA_MAP_TYPE d_dataMap;
-    KEY_LIST_TYPE d_timeOrderedList;
-    std::mutex d_accessMutex;
+    const size_t                        d_cacheSize;
+    DATA_MAP_TYPE                       d_dataMap;
+    KEY_LIST_TYPE                       d_timeOrderedList;
+    std::mutex                          d_accessMutex;
+    std::chrono::milliseconds                d_quietPeriod;
 
 };
 
 #endif
 
 template <typename KEY, typename VALUE>
-LruCache<KEY,VALUE>::LruCache(const size_t cacheSize) : d_cacheSize(cacheSize),
-  d_accessMutex()
+LruCache<KEY,VALUE>::LruCache(const size_t cacheSize,
+        const std::chrono::milliseconds quietPeriod) :
+  d_cacheSize(cacheSize),
+  d_accessMutex(),
+  d_quietPeriod(quietPeriod)
 {
 }
 
@@ -60,6 +65,7 @@ void LruCache<KEY,VALUE>::add(const KEY& key, const VALUE& value) {
   d_timeOrderedList.emplace_front(key);
   auto dataElement = std::make_pair(value,d_timeOrderedList.begin());
   auto dataMapItem = std::make_pair(key, dataElement);
+  d_dataMap.insert(dataMapItem);
 }
 
 template <typename KEY, typename VALUE>

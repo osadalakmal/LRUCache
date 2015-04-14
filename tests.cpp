@@ -9,18 +9,20 @@ using namespace std;
 using namespace ::testing;
 
 TEST(LruTest,AddTest) {
-  LruCache<int,string> cache(50);
+  LruCache<int,string> cache(50, std::chrono::milliseconds(0));
   cache.add(5,"some");
-  ASSERT_STREQ(cache.get(5)->c_str(), "some");
+  auto a = cache.get(5);
+  ASSERT_TRUE((bool)a);
+  ASSERT_STREQ(a->c_str(), "some");
 }
 
 TEST(LruTest,WithoutAdditionTest) {
-  LruCache<int,string> cache(50);
+  LruCache<int,string> cache(50, std::chrono::milliseconds(0));
   ASSERT_FALSE(cache.get(5));
 }
 
 TEST(LruTest,EvictTest) {
-  LruCache<int,string> cache(2);
+  LruCache<int,string> cache(2, std::chrono::milliseconds(0));
   cache.add(1,"apple");
   cache.add(2,"bee");
   cache.add(3,"cat");
@@ -52,7 +54,7 @@ void insertToCache(LruCache<int,std::string>* cache, DATA_VECTOR* dataVector) {
 
 const std::chrono::microseconds getTimingForInsertTest(const int cacheSize, 
     const int numDataPoints, const int numberOfThreads = 5) {
-  LruCache<int,std::string> cache(cacheSize);
+  LruCache<int,std::string> cache(cacheSize, std::chrono::milliseconds(0));
   std::uniform_int_distribution<int> d(0, numDataPoints * 10);
   std::random_device rd1; // uses RDRND or /dev/urandom
   auto dataVector = new DATA_VECTOR_PTR[numberOfThreads];
