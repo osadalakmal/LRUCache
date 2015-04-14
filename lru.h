@@ -14,14 +14,20 @@ class LruCache {
   LruCache(const LruCache&&);
   LruCache& operator=(const LruCache&);
   LruCache&& operator=(const LruCache&&);
+
   public:
-    // Typedefs Publicly Available
-    typedef std::list<KEY> KEY_LIST_TYPE;
-    typedef typename KEY_LIST_TYPE::iterator KEY_LIST_ITERATOR;
-    typedef typename std::pair<VALUE, KEY_LIST_ITERATOR> DATA_MAP_ELEMENT;
-    typedef typename std::map<KEY, DATA_MAP_ELEMENT> DATA_MAP_TYPE;
-    typedef typename DATA_MAP_TYPE::iterator DATA_MAP_ITERATOR;
-   
+  // Typedefs Publicly Available
+  typedef std::list<KEY> KEY_LIST_TYPE;
+  typedef typename KEY_LIST_TYPE::iterator KEY_LIST_ITERATOR;
+  struct DataMapElement {
+    VALUE d_value;
+    KEY_LIST_ITERATOR d_placeInList;
+    std::chrono::system_clock::time_point d_lastAccessTime;
+  };
+  typedef typename LruCache<KEY,VALUE>::DataMapElement DATA_MAP_ELEMENT;
+  typedef typename std::map<KEY, DATA_MAP_ELEMENT> DATA_MAP_TYPE;
+  typedef typename DATA_MAP_TYPE::iterator DATA_MAP_ITERATOR;
+
     // Public Interface
     LruCache(const size_t cacheSize, 
         const std::chrono::milliseconds quietPeriod = 0);
@@ -35,7 +41,7 @@ class LruCache {
     DATA_MAP_TYPE                       d_dataMap;
     KEY_LIST_TYPE                       d_timeOrderedList;
     std::mutex                          d_accessMutex;
-    std::chrono::milliseconds                d_quietPeriod;
+    std::chrono::milliseconds           d_quietPeriod;
 
 };
 
@@ -63,7 +69,7 @@ void LruCache<KEY,VALUE>::add(const KEY& key, const VALUE& value) {
     evict(1);
   }
   d_timeOrderedList.emplace_front(key);
-  auto dataElement = std::make_pair(value,d_timeOrderedList.begin());
+  DataMapElement dataElement = {value,d_timeOrderedList.begin(),std::chrono::system_clock::now()};
   auto dataMapItem = std::make_pair(key, dataElement);
   d_dataMap.insert(dataMapItem);
 }
@@ -72,12 +78,15 @@ template <typename KEY, typename VALUE>
 std::unique_ptr<VALUE> LruCache<KEY,VALUE>::get(const KEY& key) {
   DATA_MAP_ITERATOR iter = d_dataMap.find(key);
   if ( iter != d_dataMap.end() ) {
-    std::lock_guard<std::mutex> accessLockGuard(d_accessMutex);
-    d_timeOrderedList.splice(d_timeOrderedList.begin(), d_timeOrderedList, iter->second.second);
-    return std::unique_ptr<VALUE>( new VALUE(iter->second.first) );;
-  } else {
-    return std::unique_ptr<VALUE>();
+    if (std::chrono::milliseconds(d_quietPeriod) <
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+          (std::chrono::system_clock::now() - iter->second.d_lastAccessTime))) {
+      std::lock_guard<std::mutex> accessLockGuard(d_accessMutex);
+      d_timeOrderedList.splice(d_timeOrderedList.begin(), d_timeOrderedList, iter->second.d_placeInList);
+    }
+    return std::unique_ptr<VALUE>( new VALUE(iter->second.d_value) );
   }
+  return std::unique_ptr<VALUE>();
 }
 
 
