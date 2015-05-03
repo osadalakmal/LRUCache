@@ -52,27 +52,40 @@ void insertToCache(LruCache<int,std::string>* cache, DATA_VECTOR* dataVector) {
   }
 }
 
-const std::chrono::microseconds getTimingForInsertTest(const int cacheSize, 
-    const int numDataPoints, const int numberOfThreads = 5) {
-  LruCache<int,std::string> cache(cacheSize, std::chrono::milliseconds(0));
+void setupDataVectors( DATA_VECTOR_PTR* dataVectors, int numDataPoints, int numberOfThreads) {
   std::uniform_int_distribution<int> d(0, numDataPoints * 10);
   std::random_device rd1; // uses RDRND or /dev/urandom
-  auto dataVector = new DATA_VECTOR_PTR[numberOfThreads];
+
   for (int i = 0; i < numberOfThreads; i++) {
-    dataVector[i] = new DATA_VECTOR();
+    dataVectors[i] = new DATA_VECTOR();
     for (int j = 0; j < numDataPoints; j++) {
-      dataVector[i]->push_back(std::make_pair(d(rd1), getRandomString(15)));
+      dataVectors[i]->push_back(std::make_pair(d(rd1), getRandomString(15)));
     }
   }
+}
+
+void waitForInsertions(LruCache<int,std::string>& cache, DATA_VECTOR_PTR* dataVectors, int numberOfThreads) {
   std::vector<std::future<void> > futures;
-  auto t1 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < numberOfThreads; i++) {
-    futures.push_back(std::async( std::bind(insertToCache, &cache, dataVector[i])));
+    futures.push_back(std::async( std::bind(insertToCache, &cache, dataVectors[i])));
   }
   for (auto& future : futures) {
     future.wait();
   }
+}
+
+const std::chrono::microseconds getTimingForInsertTest(const int cacheSize, 
+    const int numDataPoints, const int numberOfThreads = 5) {
+  LruCache<int,std::string> cache(cacheSize, std::chrono::milliseconds(0));
+  //auto numOfReads = 500;
+  //auto fractionInCache = 0.5;
+  auto dataVectors = new DATA_VECTOR_PTR[numberOfThreads];
+  setupDataVectors(dataVectors, numDataPoints, numberOfThreads);
+
+  auto t1 = std::chrono::high_resolution_clock::now();
+  waitForInsertions(cache, dataVectors, numberOfThreads);
   auto t2 = std::chrono::high_resolution_clock::now();
+
   return std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
 }
 
