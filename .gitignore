@@ -1,4 +1,9 @@
 *.o
-*.tsk
 *.d
+*.swo
+*.swp
+*.bak
+*.pyc
+*.a
+*.tsk
 build/

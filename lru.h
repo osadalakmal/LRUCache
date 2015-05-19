@@ -10,6 +10,11 @@
 #include <thread>
 #include <atomic>
 
+enum class DeleterPolicy {
+  DIRECT_DELETE,
+  QUEUED_DELTE
+};
+
 template<typename KEY, typename VALUE>
 class LruCache {
   //Deleted functions
@@ -34,7 +39,7 @@ class LruCache {
   typedef typename std::weak_ptr<boost::lockfree::queue<KEY> > DELETE_QUEUE_WEAK_PTR;
 
     // Public Interface
-    LruCache(const size_t cacheSize, 
+    LruCache(const size_t cacheSize, DeleterPolicy deleterPolicy,
         const std::chrono::milliseconds quietPeriod = 0);
     ~LruCache();
     void add(const KEY& key, const VALUE& value);
@@ -44,6 +49,7 @@ class LruCache {
     void deleterThread();
 
     const size_t                        d_cacheSize;
+    DeleterPolicy                       d_deleterPolicy;
     DATA_MAP_TYPE                       d_dataMap;
     KEY_LIST_TYPE                       d_timeOrderedList;
     std::mutex                          d_accessMutex;
@@ -64,9 +70,10 @@ void LruCache<KEY,VALUE>::deleterThread() {
 }
 
 template <typename KEY, typename VALUE>
-LruCache<KEY,VALUE>::LruCache(const size_t cacheSize,
+LruCache<KEY,VALUE>::LruCache(const size_t cacheSize, DeleterPolicy deleterPolicy,
         const std::chrono::milliseconds quietPeriod) :
   d_cacheSize(cacheSize),
+  d_deleterPolicy(deleterPolicy),
   d_accessMutex(),
   d_quietPeriod(quietPeriod),
   d_deleterQueue(std::make_shared<boost::lockfree::queue<KEY> >(500)),
@@ -114,7 +121,11 @@ std::unique_ptr<VALUE> LruCache<KEY,VALUE>::get(const KEY& key) {
 template <typename KEY, typename VALUE>
 void LruCache<KEY,VALUE>::evict(const size_t numOfElements) {
   for(size_t i=0; i<numOfElements; i++) {
-    d_deleterQueue->push(d_timeOrderedList.back());
+    if (d_deleterPolicy == DeleterPolicy::DIRECT_DELETE) {
+      d_dataMap.erase(d_timeOrderedList.back());
+    } else {
+      d_deleterQueue->push(d_timeOrderedList.back());
+    }
     d_timeOrderedList.pop_back();
   }
 }

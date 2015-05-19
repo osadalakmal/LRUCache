@@ -12,7 +12,7 @@ typedef LruCache<int,std::string> LruTestCache;
 typedef std::vector<std::chrono::microseconds> TimingVector;
 
 TEST(LruTest,AddTest) {
-  LruTestCache cache(50, std::chrono::milliseconds(0));
+  LruTestCache cache(50, DeleterPolicy::DIRECT_DELETE, std::chrono::milliseconds(0));
   cache.add(5,"some");
   auto a = cache.get(5);
   ASSERT_TRUE((bool)a);
@@ -20,12 +20,12 @@ TEST(LruTest,AddTest) {
 }
 
 TEST(LruTest,WithoutAdditionTest) {
-  LruTestCache cache(50, std::chrono::milliseconds(0));
+  LruTestCache cache(50, DeleterPolicy::DIRECT_DELETE, std::chrono::milliseconds(0));
   ASSERT_FALSE(cache.get(5));
 }
 
 TEST(LruTest,EvictTest) {
-  LruTestCache cache(2, std::chrono::milliseconds(0));
+  LruTestCache cache(2, DeleterPolicy::DIRECT_DELETE, std::chrono::milliseconds(0));
   cache.add(1,"apple");
   cache.add(2,"bee");
   cache.add(3,"cat");
@@ -94,10 +94,9 @@ void readPercentageOfData(LruCache<int, std::string>& cache, const DATA_VECTOR& 
 }
 
 const TimingVector getTimingForInsertTest(const int cacheSize, 
-    const int numDataPoints, const int numberOfThreads = 5) {
-  LruTestCache cache(cacheSize, std::chrono::milliseconds(0));
-  //auto numOfReads = 500;
-  auto fractionInCache = 0.5;
+    const int numDataPoints, const double fractionInCache, 
+    DeleterPolicy deleterPolicy, const int numberOfThreads = 5) {
+  LruTestCache cache(cacheSize, deleterPolicy, std::chrono::milliseconds(0));
   DATA_VECTOR_LIST dataVectors(numberOfThreads);
   setupDataVectors(dataVectors, numDataPoints, numberOfThreads);
 
@@ -111,8 +110,15 @@ const TimingVector getTimingForInsertTest(const int cacheSize,
            std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2),};
 }
 
-TEST(LruTest,AddTimingTest) {
-  TimingVector durationsForTest = getTimingForInsertTest(500,500,5);
+TEST(LruTest,AddTimingTestDirectDelete) {
+  TimingVector durationsForTest = getTimingForInsertTest(500,500,1.4, DeleterPolicy::DIRECT_DELETE);
+  std::cout << "Random Add Test took "
+    << durationsForTest[0].count()
+    << " microseconds\n";
+}
+
+TEST(LruTest,AddTimingTestQueuedDelete) {
+  TimingVector durationsForTest = getTimingForInsertTest(500,500,1.4, DeleterPolicy::QUEUED_DELTE);
   std::cout << "Random Add Test took "
     << durationsForTest[0].count()
     << " microseconds\n";
