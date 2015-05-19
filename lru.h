@@ -1,11 +1,14 @@
 #ifndef INCLUDED_LRU_H
 #define INCLUDED_LRU_H
 
+#include <boost/lockfree/queue.hpp>
 #include <map>
 #include <list>
 #include <memory>
 #include <cstddef>
 #include <mutex>
+#include <thread>
+#include <atomic>
 
 template<typename KEY, typename VALUE>
 class LruCache {
@@ -27,6 +30,8 @@ class LruCache {
   typedef typename LruCache<KEY,VALUE>::DataMapElement DATA_MAP_ELEMENT;
   typedef typename std::map<KEY, DATA_MAP_ELEMENT> DATA_MAP_TYPE;
   typedef typename DATA_MAP_TYPE::iterator DATA_MAP_ITERATOR;
+  typedef typename std::shared_ptr<boost::lockfree::queue<KEY> > DELETE_QUEUE_SHARED_PTR;
+  typedef typename std::weak_ptr<boost::lockfree::queue<KEY> > DELETE_QUEUE_WEAK_PTR;
 
     // Public Interface
     LruCache(const size_t cacheSize, 
@@ -36,28 +41,44 @@ class LruCache {
     std::unique_ptr<VALUE> get(const KEY& key);
   private:
     void evict(const size_t numOfElements);
+    void deleterThread();
 
     const size_t                        d_cacheSize;
     DATA_MAP_TYPE                       d_dataMap;
     KEY_LIST_TYPE                       d_timeOrderedList;
     std::mutex                          d_accessMutex;
     std::chrono::milliseconds           d_quietPeriod;
-
+    DELETE_QUEUE_SHARED_PTR             d_deleterQueue;
+    std::atomic_flag                    d_deleterExitFlag;
+    std::thread                         d_deleterThread;
 };
 
 #endif
+
+template <typename KEY, typename VALUE>
+void LruCache<KEY,VALUE>::deleterThread() {
+  while(!d_deleterExitFlag.test_and_set()) {
+    d_deleterQueue->consume_all([this] (KEY key) { d_dataMap.erase(key); });
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
 
 template <typename KEY, typename VALUE>
 LruCache<KEY,VALUE>::LruCache(const size_t cacheSize,
         const std::chrono::milliseconds quietPeriod) :
   d_cacheSize(cacheSize),
   d_accessMutex(),
-  d_quietPeriod(quietPeriod)
+  d_quietPeriod(quietPeriod),
+  d_deleterQueue(std::make_shared<boost::lockfree::queue<KEY> >(500)),
+  d_deleterExitFlag()
 {
+  d_deleterThread = std::thread(std::bind(&LruCache<KEY,VALUE>::deleterThread,this));
 }
 
 template <typename KEY, typename VALUE>
 LruCache<KEY,VALUE>::~LruCache() {
+  d_deleterExitFlag.clear();
+  d_deleterThread.join();
   d_timeOrderedList.clear();
   d_dataMap.clear();
 }
@@ -93,7 +114,7 @@ std::unique_ptr<VALUE> LruCache<KEY,VALUE>::get(const KEY& key) {
 template <typename KEY, typename VALUE>
 void LruCache<KEY,VALUE>::evict(const size_t numOfElements) {
   for(size_t i=0; i<numOfElements; i++) {
-    d_dataMap.erase(d_timeOrderedList.back());
+    d_deleterQueue->push(d_timeOrderedList.back());
     d_timeOrderedList.pop_back();
   }
 }

@@ -29,6 +29,7 @@ TEST(LruTest,EvictTest) {
   cache.add(1,"apple");
   cache.add(2,"bee");
   cache.add(3,"cat");
+  sleep(2);
   ASSERT_FALSE(cache.get(1));
   ASSERT_STREQ(cache.get(2)->c_str(), "bee");
   ASSERT_STREQ(cache.get(3)->c_str(), "cat");
