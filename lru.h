@@ -18,10 +18,10 @@ enum class DeleterPolicy {
 template<typename KEY, typename VALUE>
 class LruCache {
   //Deleted functions
-  LruCache(const LruCache&);
-  LruCache(const LruCache&&);
-  LruCache& operator=(const LruCache&);
-  LruCache&& operator=(const LruCache&&);
+  LruCache(const LruCache&) = delete;
+  LruCache(const LruCache&&) = delete;
+  LruCache& operator=(const LruCache&) = delete;
+  LruCache&& operator=(const LruCache&&) = delete;
 
   public:
   // Typedefs Publicly Available
